@@ -1,7 +1,9 @@
 import usePageTitle from "../hooks/usePageTitle.js";
+import useWorkoutRecords from "../hooks/useWorkoutRecords.js";
 
 const Records = () => {
   usePageTitle("记录");
+  const { records } = useWorkoutRecords();
 
   return (
     <section className="page">
@@ -10,20 +12,26 @@ const Records = () => {
       <div className="table">
         <div className="table-row table-head">
           <span>日期</span>
-          <span>任务</span>
-          <span>状态</span>
+          <span>时间</span>
+          <span>健身类型</span>
+          <span>备注</span>
+          <span>照片</span>
         </div>
-        {[
-          { date: "2024-01-15", task: "晨间冥想", status: "已完成" },
-          { date: "2024-01-14", task: "阅读 30 分钟", status: "已完成" },
-          { date: "2024-01-13", task: "运动 20 分钟", status: "已完成" }
-        ].map((row) => (
-          <div className="table-row" key={row.date}>
-            <span>{row.date}</span>
-            <span>{row.task}</span>
-            <span>{row.status}</span>
+        {records.length === 0 ? (
+          <div className="table-row empty-row">
+            <span>暂无打卡记录</span>
           </div>
-        ))}
+        ) : (
+          records.map((record) => (
+            <div className="table-row" key={record.id}>
+              <span>{record.date}</span>
+              <span>{record.time}</span>
+              <span>{record.workoutType}</span>
+              <span>{record.notes || "—"}</span>
+              <span>{record.photoUrl || "—"}</span>
+            </div>
+          ))
+        )}
       </div>
     </section>
   );

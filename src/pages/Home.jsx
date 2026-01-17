@@ -1,7 +1,23 @@
 import usePageTitle from "../hooks/usePageTitle.js";
+import useWorkoutRecords from "../hooks/useWorkoutRecords.js";
+
+const getDateString = (date) => date.toISOString().slice(0, 10);
 
 const Home = () => {
   usePageTitle("首页");
+  const { records, todayRecords, today } = useWorkoutRecords();
+  const latestRecord = records[0];
+  const dateSet = new Set(records.map((record) => record.date));
+
+  const streak = (() => {
+    let count = 0;
+    let cursor = new Date(`${today}T00:00:00`);
+    while (dateSet.has(getDateString(cursor))) {
+      count += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return count;
+  })();
 
   return (
     <section className="page">
@@ -10,15 +26,19 @@ const Home = () => {
       <div className="card-grid">
         <article className="card">
           <h2>今日目标</h2>
-          <p>完成 3 项打卡任务。</p>
+          <p>今日已完成 {todayRecords.length} 次打卡。</p>
         </article>
         <article className="card">
           <h2>连续打卡</h2>
-          <p>保持 7 天连续打卡记录。</p>
+          <p>已连续保持 {streak} 天打卡。</p>
         </article>
         <article className="card">
           <h2>最新记录</h2>
-          <p>查看最近的习惯与成长日志。</p>
+          <p>
+            {latestRecord
+              ? `${latestRecord.date} ${latestRecord.time} · ${latestRecord.workoutType}`
+              : "暂无记录，开始首次打卡吧。"}
+          </p>
         </article>
       </div>
     </section>
