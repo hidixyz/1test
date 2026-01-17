@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 const navItems = [
   { to: "/", label: "首页" },
   { to: "/calendar", label: "日历" },
+  { to: "/reminders", label: "提醒" },
   { to: "/checkin", label: "打卡" },
   { to: "/records", label: "记录" }
 ];
