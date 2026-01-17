@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, memo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import usePageTitle from "../hooks/usePageTitle.js";
 import { checkinsApi } from "../api.js";
@@ -31,6 +31,19 @@ const formatDateKey = (year, month, day) => {
   const dayValue = String(day).padStart(2, "0");
   return `${year}-${monthValue}-${dayValue}`;
 };
+
+// Memoized calendar cell component for better performance
+const CalendarCell = memo(({ day, status, onSelect }) => (
+  <button
+    type="button"
+    className={`calendar-cell ${status.tone}`}
+    onClick={() => onSelect(day)}
+  >
+    <span className="calendar-date">{day}</span>
+    <span className="calendar-status">{status.label}</span>
+    <span className="calendar-action">进入打卡</span>
+  </button>
+));
 
 const Calendar = () => {
   usePageTitle("日历");
@@ -100,12 +113,10 @@ const Calendar = () => {
     return { label: "未打卡", tone: "danger" };
   };
 
-  const handleSelectDay = (day) => {
-    if (!day) {
-      return;
-    }
+  const handleSelectDay = useCallback((day) => {
+    if (!day) return;
     navigate(`/calendar/${formatDateKey(year, month, day)}`);
-  };
+  }, [navigate, year, month]);
 
   return (
     <section className="page">
@@ -136,16 +147,12 @@ const Calendar = () => {
 
             const status = getStatusByDay(item.day);
             return (
-              <button
+              <CalendarCell
                 key={item.key}
-                type="button"
-                className={`calendar-cell ${status.tone}`}
-                onClick={() => handleSelectDay(item.day)}
-              >
-                <span className="calendar-date">{item.day}</span>
-                <span className="calendar-status">{status.label}</span>
-                <span className="calendar-action">进入打卡</span>
-              </button>
+                day={item.day}
+                status={status}
+                onSelect={handleSelectDay}
+              />
             );
           })
         )}

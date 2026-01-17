@@ -2,6 +2,20 @@
   font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
   color: #0f172a;
   background-color: #f8fafc;
+
+  /* Spacing scale using rem */
+  --space-xs: 0.25rem;   /* 4px */
+  --space-sm: 0.5rem;    /* 8px */
+  --space-md: 1rem;      /* 16px */
+  --space-lg: 1.5rem;    /* 24px */
+  --space-xl: 2rem;      /* 32px */
+
+  /* Touch-friendly minimum size */
+  --tap-target-min: 2.75rem; /* 44px */
+
+  /* Safe area insets for notched phones */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 * {
@@ -21,12 +35,28 @@ a {
 }
 
 .app-shell {
-  max-width: 1100px;
+  max-width: 68.75rem;
   margin: 0 auto;
-  padding: 32px 24px 64px;
+  padding: var(--space-md);
+  padding-top: calc(var(--space-md) + var(--safe-area-top));
+  padding-bottom: calc(var(--space-xl) + var(--safe-area-bottom));
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-md);
+  min-height: 100dvh;
+}
+
+@media (min-width: 480px) {
+  .app-shell {
+    padding: var(--space-lg);
+    gap: var(--space-lg);
+  }
+}
+
+@media (min-width: 720px) {
+  .app-shell {
+    padding: var(--space-xl) var(--space-lg) 4rem;
+  }
 }
 
 .app-header {
@@ -56,12 +86,17 @@ a {
 }
 
 .nav-link {
-  padding: 10px 16px;
+  padding: 0.75rem 1.25rem;
+  min-height: var(--tap-target-min);
+  display: inline-flex;
+  align-items: center;
   border-radius: 999px;
   background: #e2e8f0;
   color: #475569;
   font-weight: 500;
   transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .nav-link:hover {
@@ -84,6 +119,33 @@ a {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.page-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #64748b;
+  font-size: 1rem;
+}
+
+/* Utility Classes */
+.cursor-pointer { cursor: pointer; }
+.mt-sm { margin-top: var(--space-sm); }
+.mt-md { margin-top: var(--space-md); }
+.mt-lg { margin-top: var(--space-lg); }
+.mb-md { margin-bottom: var(--space-md); }
+.mb-lg { margin-bottom: var(--space-lg); }
+
+.card-interactive {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
 }
 
 .card-grid {
@@ -511,11 +573,6 @@ a {
     align-items: flex-start;
   }
 
-  .calendar-weekdays,
-  .calendar-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .calendar-detail-header {
     flex-direction: column;
     align-items: flex-start;
@@ -531,6 +588,77 @@ a {
     grid-template-columns: 1fr;
     gap: 6px;
   }
+}
+
+/* Mobile-specific calendar optimizations */
+@media (max-width: 479px) {
+  .calendar-weekdays,
+  .calendar-grid {
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+
+  .calendar-cell {
+    min-height: 3.5rem;
+    padding: 0.5rem 0.25rem;
+  }
+
+  .calendar-date {
+    font-size: 0.875rem;
+  }
+
+  .calendar-status {
+    font-size: 0.625rem;
+  }
+
+  .calendar-action {
+    display: none;
+  }
+
+  .calendar-weekday {
+    font-size: 0.75rem;
+    padding: 0.25rem 0;
+  }
+}
+
+/* Mobile Bottom Sheet Modals */
+@media (max-width: 479px) {
+  .custom-input-modal,
+  .confirm-modal {
+    width: 100%;
+    max-width: none;
+    border-radius: 1.5rem 1.5rem 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    animation: slideUpFromBottom 0.3s ease;
+    padding-bottom: calc(var(--space-lg) + var(--safe-area-bottom));
+  }
+
+  .confirm-overlay,
+  .custom-input-overlay {
+    align-items: flex-end;
+  }
+
+  .create-category-modal,
+  .category-manage-modal {
+    width: 100%;
+    max-width: none;
+    max-height: 90vh;
+    border-radius: 1.5rem 1.5rem 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    animation: slideUpFromBottom 0.3s ease;
+    padding-bottom: calc(var(--space-lg) + var(--safe-area-bottom));
+  }
+}
+
+@keyframes slideUpFromBottom {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 /* Makeup Checkin Styles */

@@ -193,7 +193,7 @@ const CalendarDetail = () => {
           </div>
 
           {checkins.length > 0 && (
-            <div className="card" style={{ marginTop: "1rem" }}>
+            <div className="card mt-md">
               <h2>打卡详情</h2>
               <div className="list">
                 {checkins.map((checkin) => (
@@ -233,7 +233,7 @@ const CalendarDetail = () => {
           {dateCanMakeUp && uncheckedTasks.length > 0 && (
             <div className="makeup-section">
               <h2 className="makeup-section-title">补打卡 (可补打7天内)</h2>
-              <p className="muted" style={{ marginBottom: "16px" }}>
+              <p className="muted mb-md">
                 未完成任务：
               </p>
               <div className="list">
@@ -303,7 +303,7 @@ const CalendarDetail = () => {
           {!dateIsToday && !dateCanMakeUp && !dateIsFuture && (
             <div className="makeup-section makeup-expired-section">
               <p className="makeup-expired">已超过补打卡期限（仅支持7天内补打卡）</p>
-              <div className="calendar-detail-actions" style={{ marginTop: "16px" }}>
+              <div className="calendar-detail-actions mt-md">
                 <button
                   type="button"
                   className="secondary-button"

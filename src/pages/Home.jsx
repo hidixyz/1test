@@ -43,7 +43,7 @@ const Home = () => {
       <h1>欢迎回来</h1>
       <p>在这里快速查看今日目标、提醒与进度。</p>
       <div className="card-grid">
-        <article className="card" onClick={() => navigate("/checkin")} style={{ cursor: "pointer" }}>
+        <article className="card card-interactive" onClick={() => navigate("/checkin")}>
           <h2>今日目标</h2>
           <p>
             完成 {tasks.length} 项打卡任务
@@ -60,7 +60,7 @@ const Home = () => {
               : "暂无打卡记录"}
           </p>
         </article>
-        <article className="card" onClick={() => navigate("/records")} style={{ cursor: "pointer" }}>
+        <article className="card card-interactive" onClick={() => navigate("/records")}>
           <h2>累计打卡</h2>
           <p>
             {stats
@@ -71,7 +71,7 @@ const Home = () => {
       </div>
 
       {stats && stats.recentCheckins && stats.recentCheckins.length > 0 && (
-        <div className="card" style={{ marginTop: "1.5rem" }}>
+        <div className="card mt-lg">
           <h2>最近打卡</h2>
           <div className="list">
             {stats.recentCheckins.slice(0, 3).map((checkin) => (
