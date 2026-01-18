@@ -1,8 +1,10 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import tasksRouter from './routes/tasks.js';
 import checkinsRouter from './routes/checkins.js';
 import statsRouter from './routes/stats.js';
+import llmRouter from './routes/llm.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -15,6 +17,7 @@ app.use(express.json());
 app.use('/api/tasks', tasksRouter);
 app.use('/api/checkins', checkinsRouter);
 app.use('/api/stats', statsRouter);
+app.use('/api/llm', llmRouter);
 
 // 健康检查
 app.get('/api/health', (req, res) => {

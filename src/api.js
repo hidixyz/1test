@@ -87,3 +87,40 @@ export const getTodayDate = () => {
 export const getCurrentMonth = () => {
   return new Date().toISOString().slice(0, 7);
 };
+
+// LLM API
+export const llmApi = {
+  // Synchronous chat (waits for complete response)
+  chat: (messages, systemPrompt) => request('/llm/chat', {
+    method: 'POST',
+    body: JSON.stringify({
+      messages,
+      systemPrompt,
+      mode: 'sync'
+    }),
+  }),
+
+  // Start async task with polling (returns taskId)
+  chatAsync: (messages, systemPrompt) => request('/llm/chat', {
+    method: 'POST',
+    body: JSON.stringify({
+      messages,
+      systemPrompt,
+      mode: 'poll'
+    }),
+  }),
+
+  // Start async task with callback (returns taskId)
+  chatWithCallback: (messages, systemPrompt, callbackUrl) => request('/llm/chat', {
+    method: 'POST',
+    body: JSON.stringify({
+      messages,
+      systemPrompt,
+      mode: 'callback',
+      callbackUrl
+    }),
+  }),
+
+  // Poll for task result
+  getTask: (taskId) => request(`/llm/task/${taskId}`),
+};

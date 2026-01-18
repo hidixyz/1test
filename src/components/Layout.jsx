@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
 const navItems = [
   { to: "/", label: "首页" },
@@ -8,6 +8,8 @@ const navItems = [
 ];
 
 const Layout = ({ children }) => {
+  const navigate = useNavigate();
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -15,7 +17,11 @@ const Layout = ({ children }) => {
           <p className="app-title">打卡应用</p>
           <p className="app-subtitle">专注习惯养成与记录</p>
         </div>
-        <button className="primary-button" type="button">
+        <button
+          className="primary-button"
+          type="button"
+          onClick={() => navigate("/checkin")}
+        >
           今日打卡
         </button>
       </header>
