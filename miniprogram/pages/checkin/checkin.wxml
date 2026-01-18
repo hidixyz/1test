@@ -1,0 +1,142 @@
+<!--
+  打卡页 - 微信小程序版本
+  对应 React 版本的 src/pages/Checkin.jsx
+-->
+<view class="page">
+  <view class="page-title">打卡中心</view>
+  <view class="page-subtitle">选择任务并完成今日打卡。</view>
+
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 任务列表 -->
+  <view class="list" wx:if="{{!loading}}">
+    <block wx:for="{{tasks}}" wx:key="id">
+      <!-- 运动类任务：使用分类打卡组件 -->
+      <view class="exercise-checkin" wx:if="{{item.name === '运动' && !exerciseCategoryHidden}}">
+        <view class="exercise-header">
+          <text class="exercise-icon">🏃</text>
+          <text class="exercise-title">运动</text>
+        </view>
+
+        <!-- 已打卡状态 -->
+        <view wx:if="{{isTaskChecked(item.id)}}" class="muted">今日已完成</view>
+
+        <!-- 未打卡状态 -->
+        <block wx:else>
+          <view class="exercise-hint">点击选择运动类型和时长</view>
+
+          <!-- 运动类型标签 -->
+          <view class="exercise-tags">
+            <view
+              wx:for="{{exerciseTags}}"
+              wx:for-item="tag"
+              wx:key="*this"
+              class="exercise-tag {{selectedExerciseTag === tag ? 'active' : ''}}"
+              bindtap="onSelectExerciseTag"
+              data-tag="{{tag}}"
+              data-task-id="{{item.id}}"
+            >{{tag}}</view>
+            <view class="exercise-tag add" bindtap="showAddTagModal">+ 添加</view>
+          </view>
+
+          <!-- 时长选择（选中标签后显示） -->
+          <view class="duration-section" wx:if="{{selectedExerciseTag && selectedTaskId === item.id}}">
+            <view class="duration-label">── 选择时长 ──</view>
+            <view class="duration-tags">
+              <view
+                wx:for="{{durationOptions}}"
+                wx:for-item="duration"
+                wx:key="*this"
+                class="duration-tag"
+                bindtap="onSelectDuration"
+                data-duration="{{duration}}"
+                data-task-id="{{item.id}}"
+              >{{duration}}分钟</view>
+            </view>
+          </view>
+
+          <!-- 已选择列表 -->
+          <view class="selected-section" wx:if="{{selectedExerciseItems.length > 0 && selectedTaskId === item.id}}">
+            <view class="selected-label">── 已选择 ──</view>
+            <view class="selected-exercises">
+              <view class="selected-item" wx:for="{{selectedExerciseItems}}" wx:for-item="sel" wx:key="index">
+                <view class="selected-item-info">
+                  <text class="selected-item-check">✓</text>
+                  <text>{{sel.tag}} {{sel.measure}}分钟</text>
+                </view>
+                <view class="selected-item-delete" bindtap="removeSelectedItem" data-index="{{index}}">×</view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 提交按钮 -->
+          <view class="exercise-submit" wx:if="{{selectedExerciseItems.length > 0 && selectedTaskId === item.id}}">
+            <button
+              class="exercise-submit-btn {{submitting ? 'disabled' : ''}}"
+              bindtap="submitExerciseCheckin"
+              data-task-id="{{item.id}}"
+              disabled="{{submitting}}"
+            >{{submitting ? '提交中...' : '完成打卡 (' + totalExerciseMinutes + '分钟)'}}</button>
+          </view>
+        </block>
+      </view>
+
+      <!-- 普通任务 -->
+      <view class="list-item" wx:elif="{{item.name !== '运动'}}">
+        <view class="list-item-content">
+          <view class="list-item-title">{{item.name}}</view>
+          <view class="muted">{{checkedTaskIds[item.id] ? '今日已完成' : (item.description || '今日目标')}}</view>
+        </view>
+        <button
+          class="btn {{checkedTaskIds[item.id] ? 'btn-primary' : 'btn-secondary'}}"
+          bindtap="handleCheckin"
+          data-task-id="{{item.id}}"
+          disabled="{{checkedTaskIds[item.id] || checking === item.id}}"
+        >{{checking === item.id ? '打卡中...' : (checkedTaskIds[item.id] ? '已打卡 ✓' : '立即打卡')}}</button>
+      </view>
+    </block>
+
+    <!-- 无任务提示 -->
+    <view class="empty" wx:if="{{tasks.length === 0}}">暂无任务</view>
+  </view>
+
+  <!-- 分类管理区域 -->
+  <view class="category-manage-section" wx:if="{{!loading}}">
+    <view class="category-manage-title">
+      <text>⚙️</text>
+      <text>分类管理</text>
+    </view>
+    <view class="category-manage-list">
+      <!-- 运动分类 -->
+      <view class="category-manage-item" bindtap="manageExerciseCategory">
+        <text class="category-manage-item-icon">🏃</text>
+        <text class="category-manage-item-name">运动</text>
+      </view>
+    </view>
+    <view class="add-category-btn" bindtap="showAddCategoryModal">
+      <view class="add-category-icon">+</view>
+      <text>添加新分类</text>
+    </view>
+  </view>
+
+  <!-- 添加标签弹窗 -->
+  <view class="modal-overlay" wx:if="{{showTagModal}}" bindtap="hideAddTagModal">
+    <view class="modal-content" catchtap="preventBubble">
+      <view class="modal-title">添加自定义运动类型</view>
+      <input
+        class="input"
+        placeholder="输入类型名称"
+        value="{{newTagValue}}"
+        bindinput="onNewTagInput"
+        maxlength="10"
+      />
+      <view class="modal-actions">
+        <button class="btn btn-secondary" bindtap="hideAddTagModal">取消</button>
+        <button class="btn btn-primary" bindtap="addCustomTag">确定</button>
+      </view>
+    </view>
+  </view>
+</view>

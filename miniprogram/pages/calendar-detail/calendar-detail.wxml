@@ -1,0 +1,104 @@
+<!--
+  日历详情页 - 微信小程序版本
+  对应 React 版本的 src/pages/CalendarDetail.jsx
+-->
+<view class="page">
+  <!-- 头部 -->
+  <view class="calendar-header">
+    <view>
+      <view class="page-title">当天打卡详情</view>
+      <view class="muted">{{displayDate}}</view>
+    </view>
+    <button class="btn btn-secondary" bindtap="goBack">返回月历</button>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+
+  <block wx:if="{{!loading}}">
+    <!-- 打卡概览 -->
+    <view class="card">
+      <view class="card-title">打卡概览</view>
+      <view class="detail-list">
+        <view class="detail-item">
+          <text class="detail-label">状态：</text>
+          <text>{{checkins.length > 0 ? '已打卡 ' + checkins.length + ' 项' : '未打卡'}}</text>
+        </view>
+        <view class="detail-item">
+          <text class="detail-label">打卡时间：</text>
+          <text>{{checkinTimes || '-'}}</text>
+        </view>
+        <view class="detail-item">
+          <text class="detail-label">已完成任务：</text>
+          <text>{{completedTaskNames || '无'}}</text>
+        </view>
+        <view class="detail-item" wx:if="{{uncheckedTasks.length > 0}}">
+          <text class="detail-label">未完成任务：</text>
+          <text>{{uncheckedTaskNames}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 打卡详情列表 -->
+    <view class="card mt-md" wx:if="{{checkins.length > 0}}">
+      <view class="card-title">打卡详情</view>
+      <view class="list">
+        <view class="list-item" wx:for="{{checkins}}" wx:key="id">
+          <view class="list-item-content">
+            <view class="list-item-title">{{item.task_name}}</view>
+            <view class="muted">打卡时间: {{item.time}}</view>
+          </view>
+          <view class="badge badge-success">已完成</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 今天：继续打卡按钮 -->
+    <view class="action-buttons" wx:if="{{dateIsToday}}">
+      <button class="btn btn-primary" bindtap="goToCheckin">继续打卡</button>
+      <button class="btn btn-secondary" bindtap="goToRecords">查看历史记录</button>
+    </view>
+
+    <!-- 过去7天内：补打卡区域 -->
+    <view class="makeup-section" wx:if="{{dateCanMakeUp && uncheckedTasks.length > 0}}">
+      <view class="makeup-section-title">补打卡 (可补打7天内)</view>
+      <view class="muted mb-md">未完成任务：</view>
+      <view class="list">
+        <view class="list-item" wx:for="{{uncheckedTasks}}" wx:key="id">
+          <view class="list-item-content">
+            <view class="list-item-title">{{item.name}}</view>
+            <view class="muted">{{item.description || '未完成'}}</view>
+          </view>
+          <button
+            class="btn btn-secondary"
+            bindtap="handleMakeupCheckin"
+            data-task-id="{{item.id}}"
+            disabled="{{checking === item.id}}"
+          >
+            {{checking === item.id ? '补打卡中...' : '立即补打卡'}}
+          </button>
+        </view>
+      </view>
+    </view>
+
+    <!-- 过去7天内但已全部完成 -->
+    <view class="action-buttons" wx:if="{{dateCanMakeUp && uncheckedTasks.length === 0}}">
+      <button class="btn btn-secondary" bindtap="goToRecords">查看历史记录</button>
+    </view>
+
+    <!-- 超过7天：已过期提示 -->
+    <view class="makeup-section makeup-expired-section" wx:if="{{!dateIsToday && !dateCanMakeUp && !dateIsFuture}}">
+      <view class="makeup-expired">已超过补打卡期限（仅支持7天内补打卡）</view>
+      <view class="action-buttons mt-md">
+        <button class="btn btn-secondary" bindtap="goToRecords">查看历史记录</button>
+      </view>
+    </view>
+
+    <!-- 未来日期：提示 -->
+    <view class="makeup-section makeup-expired-section" wx:if="{{dateIsFuture}}">
+      <view class="makeup-expired">未来日期无法打卡</view>
+    </view>
+  </block>
+</view>

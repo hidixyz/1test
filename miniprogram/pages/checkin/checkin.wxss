@@ -1,0 +1,7 @@
+/* 打卡页样式 */
+
+.selected-exercises {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}

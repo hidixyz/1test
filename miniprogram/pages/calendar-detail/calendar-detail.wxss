@@ -1,0 +1,30 @@
+/* 日历详情页样式 */
+
+.detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.detail-item {
+  display: flex;
+  color: #475569;
+  font-size: 28rpx;
+}
+
+.detail-label {
+  font-weight: 600;
+  min-width: 160rpx;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 24rpx;
+  flex-wrap: wrap;
+  margin-top: 32rpx;
+}
+
+.makeup-expired-section {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}

@@ -1,0 +1,40 @@
+<!--
+  日历页 - 微信小程序版本
+  对应 React 版本的 src/pages/Calendar.jsx
+-->
+<view class="page">
+  <!-- 头部 -->
+  <view class="calendar-header">
+    <view>
+      <view class="page-title">月历视图</view>
+      <view class="page-subtitle">按日期查看打卡情况，并快速进入当天详情。</view>
+    </view>
+    <view class="calendar-month">{{monthLabel}}</view>
+  </view>
+
+  <!-- 星期头部 -->
+  <view class="calendar-weekdays">
+    <view class="calendar-weekday" wx:for="{{weekDays}}" wx:key="*this">周{{item}}</view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 日历网格 -->
+  <view class="calendar-grid" wx:if="{{!loading}}">
+    <view
+      wx:for="{{monthDays}}"
+      wx:key="key"
+      class="calendar-cell {{item.isEmpty ? 'empty' : ''}} {{item.status.tone}}"
+      bindtap="{{item.isEmpty ? '' : 'onSelectDay'}}"
+      data-day="{{item.day}}"
+    >
+      <block wx:if="{{!item.isEmpty}}">
+        <text class="calendar-date">{{item.day}}</text>
+        <text class="calendar-status">{{item.status.label}}</text>
+      </block>
+    </view>
+  </view>
+</view>

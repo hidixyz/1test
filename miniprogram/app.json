@@ -1,0 +1,50 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/calendar/calendar",
+    "pages/calendar-detail/calendar-detail",
+    "pages/checkin/checkin",
+    "pages/records/records"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#4f46e5",
+    "navigationBarTitleText": "打卡应用",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f8fafc",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#475569",
+    "selectedColor": "#4f46e5",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页",
+        "iconPath": "images/home.png",
+        "selectedIconPath": "images/home-active.png"
+      },
+      {
+        "pagePath": "pages/calendar/calendar",
+        "text": "日历",
+        "iconPath": "images/calendar.png",
+        "selectedIconPath": "images/calendar-active.png"
+      },
+      {
+        "pagePath": "pages/checkin/checkin",
+        "text": "打卡",
+        "iconPath": "images/checkin.png",
+        "selectedIconPath": "images/checkin-active.png"
+      },
+      {
+        "pagePath": "pages/records/records",
+        "text": "记录",
+        "iconPath": "images/records.png",
+        "selectedIconPath": "images/records-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

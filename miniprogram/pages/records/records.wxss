@@ -1,0 +1,6 @@
+/* 记录页样式 */
+
+.text-danger {
+  color: #dc2626;
+  font-size: 26rpx;
+}

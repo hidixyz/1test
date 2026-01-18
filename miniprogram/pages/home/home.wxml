@@ -1,0 +1,54 @@
+<!--
+  首页 - 微信小程序版本
+  对应 React 版本的 src/pages/Home.jsx
+-->
+<view class="page">
+  <!-- 欢迎区域 -->
+  <view class="page-title">欢迎回来</view>
+  <view class="page-subtitle">在这里快速查看今日目标、提醒与进度。</view>
+
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 统计卡片 -->
+  <view class="card-grid" wx:if="{{!loading}}">
+    <!-- 今日目标 -->
+    <view class="card card-interactive" bindtap="goToCheckin">
+      <view class="card-title">今日目标</view>
+      <view>
+        <text>完成 {{tasks.length}} 项打卡任务</text>
+        <text wx:if="{{stats && stats.todayCheckins > 0}}">（已完成 {{stats.todayCheckins}} 项）</text>
+      </view>
+    </view>
+
+    <!-- 连续打卡 -->
+    <view class="card">
+      <view class="card-title">连续打卡</view>
+      <view wx:if="{{stats}}">保持 {{stats.streakDays}} 天连续打卡记录</view>
+      <view wx:else class="muted">暂无打卡记录</view>
+    </view>
+
+    <!-- 累计打卡 -->
+    <view class="card card-interactive" bindtap="goToRecords">
+      <view class="card-title">累计打卡</view>
+      <view wx:if="{{stats}}">共 {{stats.totalCheckins}} 次打卡记录</view>
+      <view wx:else class="muted">开始你的第一次打卡吧</view>
+    </view>
+  </view>
+
+  <!-- 最近打卡 -->
+  <view class="card mt-lg" wx:if="{{!loading && stats && stats.recentCheckins && stats.recentCheckins.length > 0}}">
+    <view class="card-title">最近打卡</view>
+    <view class="list">
+      <view class="list-item" wx:for="{{recentCheckins}}" wx:key="id">
+        <view class="list-item-content">
+          <view class="list-item-title">{{item.task_name}}</view>
+          <view class="muted">{{item.date}} {{item.time}}</view>
+        </view>
+        <view class="badge badge-success">已完成</view>
+      </view>
+    </view>
+  </view>
+</view>

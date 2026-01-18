@@ -1,0 +1,44 @@
+<!--
+  记录页 - 微信小程序版本
+  对应 React 版本的 src/pages/Records.jsx
+-->
+<view class="page">
+  <view class="page-title">记录列表</view>
+  <view class="page-subtitle">查看历史打卡记录与备注。</view>
+
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 记录表格 -->
+  <view class="table" wx:if="{{!loading}}">
+    <!-- 表头 -->
+    <view class="table-row table-head">
+      <text class="table-cell">日期</text>
+      <text class="table-cell table-cell-wide">任务</text>
+      <text class="table-cell">时间</text>
+      <text class="table-cell">操作</text>
+    </view>
+
+    <!-- 记录列表 -->
+    <view class="table-row" wx:for="{{records}}" wx:key="id">
+      <text class="table-cell">{{item.date}}</text>
+      <text class="table-cell table-cell-wide">{{item.task_name}}</text>
+      <text class="table-cell">{{item.time}}</text>
+      <view class="table-cell">
+        <text
+          class="text-danger"
+          bindtap="handleDelete"
+          data-id="{{item.id}}"
+          data-name="{{item.task_name}}"
+        >删除</text>
+      </view>
+    </view>
+
+    <!-- 无记录提示 -->
+    <view class="table-row" wx:if="{{records.length === 0}}">
+      <text class="muted" style="flex: 1; text-align: center;">暂无打卡记录</text>
+    </view>
+  </view>
+</view>
