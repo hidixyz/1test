@@ -48,7 +48,7 @@
     "disableSWC": true
   },
   "compileType": "miniprogram",
-  "libVersion": "3.3.4",
+  "libVersion": "3.13.2",
   "appid": "wxd74aaa3018726459",
   "projectname": "checkin-miniprogram",
   "condition": {
