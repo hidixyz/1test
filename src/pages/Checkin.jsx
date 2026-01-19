@@ -1,146 +1,57 @@
 import { useState, useEffect } from "react";
 import usePageTitle from "../hooks/usePageTitle.js";
 import { tasksApi, checkinsApi, getTodayDate } from "../api.js";
-
-// ============ 预设分类模板 ============
-const CATEGORY_TEMPLATES = [
-  {
-    name: '阅读',
-    icon: '📚',
-    presetTags: ['小说', '技术书', '杂志', '新闻'],
-    measureType: 'count',
-    measureOptions: [10, 20, 30, 50, 100],
-    measureUnit: '页'
-  },
-  {
-    name: '冥想',
-    icon: '🧘',
-    presetTags: ['正念', '呼吸', '放松', '睡前'],
-    measureType: 'duration',
-    measureOptions: [5, 10, 15, 20, 30],
-    measureUnit: '分钟'
-  },
-  {
-    name: '学习',
-    icon: '📝',
-    presetTags: ['编程', '语言', '设计', '其他'],
-    measureType: 'duration',
-    measureOptions: [15, 30, 45, 60, 90],
-    measureUnit: '分钟'
-  },
-  {
-    name: '喝水',
-    icon: '💧',
-    presetTags: ['早晨', '上午', '下午', '晚上'],
-    measureType: 'count',
-    measureOptions: [1, 2, 3, 4, 5],
-    measureUnit: '杯'
-  },
-  {
-    name: '早起',
-    icon: '🌅',
-    presetTags: [],
-    measureType: 'none',
-    measureOptions: [],
-    measureUnit: ''
-  }
-];
-
-// 可选图标列表
-const ICON_OPTIONS = ['📚', '🎵', '✍️', '🎮', '💪', '🧘', '🎯', '💡', '🎨', '🏃', '🚴', '🏊', '⚽', '🎸', '📷', '🍎', '💊', '🛏️', '☕', '🧹'];
-
-// ============ 预置运动类型（向后兼容） ============
-const DEFAULT_EXERCISE_TYPES = ["臀腿", "肩背", "核心", "肩颈", "其他"];
-const DURATION_OPTIONS = [5, 10, 15, 20, 30, 40];
-
-// 运动分类的默认配置
-const DEFAULT_EXERCISE_CATEGORY = {
-  id: 'exercise_default',
-  taskId: null, // 动态匹配
-  name: '运动',
-  icon: '🏃',
-  presetTags: DEFAULT_EXERCISE_TYPES,
-  customTags: [],
-  hiddenTags: [],
-  measureType: 'duration',
-  measureOptions: DURATION_OPTIONS,
-  measureUnit: '分钟',
-  isHidden: false,
-  isCustom: false
-};
-
-// ============ localStorage keys ============
-const CUSTOM_CATEGORIES_KEY = "checkin_custom_categories";
-const CUSTOM_EXERCISE_TYPES_KEY = "checkin_custom_exercise_types";
-const HIDDEN_PRESET_TYPES_KEY = "checkin_hidden_preset_types";
-const EXERCISE_CATEGORY_HIDDEN_KEY = "checkin_exercise_category_hidden";
+import { getStorageSync, setStorageSync } from "../adapters/storage.js";
+import {
+  CATEGORY_TEMPLATES,
+  ICON_OPTIONS,
+  DEFAULT_EXERCISE_CATEGORY,
+  DURATION_OPTIONS,
+  DEFAULT_EXERCISE_TYPES,
+  createCategory,
+  STORAGE_KEYS
+} from "../../shared/index.js";
+import {
+  getCategoryForTask,
+  getAllCategories,
+  getExistingCategoryNames,
+  buildCheckinNote,
+  calculateTotalMeasure,
+  getVisiblePresetTags,
+  getAllAvailableTags
+} from "../../shared/logic/checkin.js";
 
 // ============ 存储工具函数 ============
 const loadCustomCategories = () => {
-  try {
-    const saved = localStorage.getItem(CUSTOM_CATEGORIES_KEY);
-    return saved ? JSON.parse(saved) : {};
-  } catch {
-    return {};
-  }
+  return getStorageSync(STORAGE_KEYS.CUSTOM_CATEGORIES) || {};
 };
 
 const saveCustomCategories = (categories) => {
-  try {
-    localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(categories));
-  } catch {
-    // ignore storage errors
-  }
+  setStorageSync(STORAGE_KEYS.CUSTOM_CATEGORIES, categories);
 };
 
 const loadCustomTypes = () => {
-  try {
-    const saved = localStorage.getItem(CUSTOM_EXERCISE_TYPES_KEY);
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
+  return getStorageSync(STORAGE_KEYS.CUSTOM_EXERCISE_TYPES) || [];
 };
 
 const saveCustomTypes = (types) => {
-  try {
-    localStorage.setItem(CUSTOM_EXERCISE_TYPES_KEY, JSON.stringify(types));
-  } catch {
-    // ignore storage errors
-  }
+  setStorageSync(STORAGE_KEYS.CUSTOM_EXERCISE_TYPES, types);
 };
 
 const loadHiddenPresetTypes = () => {
-  try {
-    const saved = localStorage.getItem(HIDDEN_PRESET_TYPES_KEY);
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
+  return getStorageSync(STORAGE_KEYS.HIDDEN_PRESET_TYPES) || [];
 };
 
 const saveHiddenPresetTypes = (types) => {
-  try {
-    localStorage.setItem(HIDDEN_PRESET_TYPES_KEY, JSON.stringify(types));
-  } catch {
-    // ignore storage errors
-  }
+  setStorageSync(STORAGE_KEYS.HIDDEN_PRESET_TYPES, types);
 };
 
 const loadCategoryHidden = () => {
-  try {
-    return localStorage.getItem(EXERCISE_CATEGORY_HIDDEN_KEY) === "true";
-  } catch {
-    return false;
-  }
+  return getStorageSync(STORAGE_KEYS.EXERCISE_CATEGORY_HIDDEN) === true;
 };
 
 const saveCategoryHidden = (hidden) => {
-  try {
-    localStorage.setItem(EXERCISE_CATEGORY_HIDDEN_KEY, hidden ? "true" : "false");
-  } catch {
-    // ignore storage errors
-  }
+  setStorageSync(STORAGE_KEYS.EXERCISE_CATEGORY_HIDDEN, hidden);
 };
 
 // ============ 创建分类弹窗组件 ============
@@ -493,13 +404,12 @@ const CategoryCheckin = ({
   const [customInputValue, setCustomInputValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // 可见的预置标签
-  const visiblePresetTags = (category.presetTags || []).filter(t => !hiddenTags.includes(t));
-  // 所有可用标签
-  const allTags = [...visiblePresetTags, ...customTags];
+  // 使用共享函数获取可见标签
+  const visiblePresetTags = getVisiblePresetTags(category.presetTags, hiddenTags);
+  const allTags = getAllAvailableTags(category.presetTags, customTags, hiddenTags);
 
-  // 计算总量
-  const totalMeasure = selectedItems.reduce((sum, item) => sum + item.measure, 0);
+  // 使用共享函数计算总量
+  const totalMeasure = calculateTotalMeasure(selectedItems);
 
   // 保存自定义标签
   const saveCustomTagsToStorage = (tags) => {
@@ -564,11 +474,7 @@ const CategoryCheckin = ({
     if (category.measureType === 'none' && selectedItems.length === 0) {
       setSubmitting(true);
       try {
-        const note = JSON.stringify({
-          categoryId: category.id,
-          categoryName: category.name,
-          categoryIcon: category.icon
-        });
+        const note = buildCheckinNote(category, []);
         await onComplete(task.id, note);
       } catch (error) {
         alert(error.message || "打卡失败");
@@ -582,14 +488,7 @@ const CategoryCheckin = ({
 
     setSubmitting(true);
     try {
-      const note = JSON.stringify({
-        categoryId: category.id,
-        categoryName: category.name,
-        categoryIcon: category.icon,
-        items: selectedItems.map(item => ({ tag: item.tag, measure: item.measure })),
-        totalMeasure,
-        measureUnit: category.measureUnit
-      });
+      const note = buildCheckinNote(category, selectedItems);
       await onComplete(task.id, note);
     } catch (error) {
       alert(error.message || "打卡失败");
@@ -779,8 +678,8 @@ const CategoryManageModal = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [newTagValue, setNewTagValue] = useState('');
 
-  const visiblePresetTags = (category.presetTags || []).filter(t => !hiddenTags.includes(t));
-  const allTags = [...visiblePresetTags, ...customTags];
+  const visiblePresetTags = getVisiblePresetTags(category.presetTags, hiddenTags);
+  const allTags = getAllAvailableTags(category.presetTags, customTags, hiddenTags);
 
   // 保存自定义标签
   const saveCustomTagsToStorage = (tags) => {
@@ -1060,25 +959,14 @@ const Checkin = () => {
     return todayCheckins.some((c) => c.task_id === taskId);
   };
 
-  // 获取任务对应的分类配置
-  const getCategoryForTask = (task) => {
-    // 运动任务使用默认运动分类配置
-    if (task.name === "运动") {
-      return { ...DEFAULT_EXERCISE_CATEGORY, taskId: task.id };
-    }
-    // 查找匹配的自定义分类
-    const customCategory = Object.values(customCategories).find(c => c.taskId === task.id);
-    return customCategory || null;
+  // 获取任务对应的分类配置（使用共享函数）
+  const getCategory = (task) => {
+    return getCategoryForTask(task, customCategories);
   };
 
-  // 获取所有已存在的分类名称
-  const getExistingCategoryNames = () => {
-    const names = ['运动']; // 运动是默认分类
-    // 添加所有自定义分类的名称
-    Object.values(customCategories).forEach(c => names.push(c.name));
-    // 添加所有任务的名称
-    tasks.forEach(t => names.push(t.name));
-    return names;
+  // 获取所有已存在的分类名称（使用共享函数）
+  const getExistingNames = () => {
+    return getExistingCategoryNames(tasks, customCategories);
   };
 
   // 普通打卡
@@ -1119,21 +1007,8 @@ const Checkin = () => {
       description: `${categoryData.icon} ${categoryData.name}打卡`
     });
 
-    // 2. 保存分类配置到 localStorage
-    const category = {
-      id: `category_${task.id}`,
-      taskId: task.id,
-      name: categoryData.name,
-      icon: categoryData.icon,
-      presetTags: categoryData.presetTags,
-      customTags: [],
-      hiddenTags: [],
-      measureType: categoryData.measureType,
-      measureOptions: categoryData.measureOptions,
-      measureUnit: categoryData.measureUnit,
-      isHidden: false,
-      isCustom: true
-    };
+    // 2. 使用共享函数创建分类配置
+    const category = createCategory(task.id, categoryData);
 
     const updatedCategories = { ...customCategories, [category.id]: category };
     setCustomCategories(updatedCategories);
@@ -1164,17 +1039,9 @@ const Checkin = () => {
     }
   };
 
-  // 获取所有分类（用于管理区域）
-  const getAllCategories = () => {
-    const categories = [];
-    // 运动分类
-    const exerciseTask = tasks.find(t => t.name === '运动');
-    if (exerciseTask) {
-      categories.push({ ...DEFAULT_EXERCISE_CATEGORY, taskId: exerciseTask.id });
-    }
-    // 自定义分类
-    Object.values(customCategories).forEach(c => categories.push(c));
-    return categories;
+  // 获取所有分类（使用共享函数）
+  const getCategories = () => {
+    return getAllCategories(tasks, customCategories);
   };
 
   // 打开管理弹窗
@@ -1208,7 +1075,7 @@ const Checkin = () => {
         {tasks.map((task) => {
           const checked = isTaskChecked(task.id);
           const isChecking = checking === task.id;
-          const category = getCategoryForTask(task);
+          const category = getCategory(task);
 
           // 如果有匹配的分类配置，使用 CategoryCheckin 组件
           if (category) {
@@ -1253,7 +1120,7 @@ const Checkin = () => {
 
       {/* 分类管理区域 */}
       <CategoryManageSection
-        categories={getAllCategories()}
+        categories={getCategories()}
         exerciseCategoryHidden={exerciseCategoryHidden}
         onManageCategory={handleOpenManageModal}
         onAddCategory={() => setShowCreateModal(true)}
@@ -1274,7 +1141,7 @@ const Checkin = () => {
         <CreateCategoryModal
           onClose={() => setShowCreateModal(false)}
           onCreateCategory={handleCreateCategory}
-          existingCategoryNames={getExistingCategoryNames()}
+          existingCategoryNames={getExistingNames()}
         />
       )}
     </section>

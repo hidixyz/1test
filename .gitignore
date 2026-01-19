@@ -5,3 +5,5 @@ dist/
 .vscode/
 .claude/
 .vite/
+test-results/
+*.log

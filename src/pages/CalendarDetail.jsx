@@ -1,74 +1,23 @@
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import usePageTitle from "../hooks/usePageTitle.js";
-import { checkinsApi, tasksApi, getTodayDate } from "../api.js";
+import { checkinsApi, tasksApi } from "../api.js";
 import { CategoryCheckin } from "./Checkin.jsx";
-
-// 预置运动类型（与 Checkin.jsx 保持一致）
-const DEFAULT_EXERCISE_TYPES = ["臀腿", "肩背", "核心", "肩颈", "其他"];
-const DURATION_OPTIONS = [5, 10, 15, 20, 30, 40];
-
-// 运动分类的默认配置
-const DEFAULT_EXERCISE_CATEGORY = {
-  id: 'exercise_default',
-  taskId: null,
-  name: '运动',
-  icon: '🏃',
-  presetTags: DEFAULT_EXERCISE_TYPES,
-  customTags: [],
-  hiddenTags: [],
-  measureType: 'duration',
-  measureOptions: DURATION_OPTIONS,
-  measureUnit: '分钟',
-  isHidden: false,
-  isCustom: false
-};
+import {
+  parseDateParam,
+  isToday,
+  isWithinDays,
+  isFuture
+} from "../../shared/logic/date.js";
+import {
+  DEFAULT_EXERCISE_CATEGORY,
+  STORAGE_KEYS
+} from "../../shared/index.js";
+import { getStorageSync } from "../adapters/storage.js";
 
 // 加载自定义分类
-const CUSTOM_CATEGORIES_KEY = "checkin_custom_categories";
 const loadCustomCategories = () => {
-  try {
-    const saved = localStorage.getItem(CUSTOM_CATEGORIES_KEY);
-    return saved ? JSON.parse(saved) : {};
-  } catch {
-    return {};
-  }
-};
-
-const parseDateParam = (dateParam) => {
-  if (!dateParam) {
-    return null;
-  }
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateParam);
-  if (!match) {
-    return null;
-  }
-  const [, year, month, day] = match;
-  return new Date(Number(year), Number(month) - 1, Number(day));
-};
-
-// 判断是否是今天
-const isToday = (dateStr) => {
-  return dateStr === getTodayDate();
-};
-
-// 判断日期是否在过去7天内（不包括今天）
-const isWithin7Days = (dateStr) => {
-  const target = new Date(dateStr);
-  const today = new Date(getTodayDate());
-  target.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  const diffDays = Math.floor((today - target) / (1000 * 60 * 60 * 24));
-  return diffDays > 0 && diffDays <= 7;
-};
-
-// 判断是否是未来日期
-const isFuture = (dateStr) => {
-  const target = new Date(dateStr);
-  const today = new Date(getTodayDate());
-  target.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  return target > today;
+  return getStorageSync(STORAGE_KEYS.CUSTOM_CATEGORIES) || {};
 };
 
 const CalendarDetail = () => {
@@ -90,9 +39,9 @@ const CalendarDetail = () => {
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(null);
 
-  // 计算日期状态
+  // 使用共享函数计算日期状态
   const dateIsToday = date ? isToday(date) : false;
-  const dateCanMakeUp = date ? isWithin7Days(date) : false;
+  const dateCanMakeUp = date ? isWithinDays(date, 7) : false;
   const dateIsFuture = date ? isFuture(date) : false;
 
   // 加载当天数据

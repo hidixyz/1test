@@ -1,126 +1,23 @@
-const API_BASE = 'http://localhost:3001/api';
+/**
+ * React Web - API 客户端
+ * 使用 shared/api + adapters
+ */
 
-// 通用请求函数
-async function request(endpoint, options = {}) {
-  const url = `${API_BASE}${endpoint}`;
-  const config = {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    ...options,
-  };
+import { request } from './adapters/request.js';
+import { createApiMethods } from '../shared/api/endpoints.js';
+import { getTodayDate, getCurrentMonth } from '../shared/logic/date.js';
 
-  const response = await fetch(url, config);
-  const data = await response.json();
+// 创建 API 实例
+const api = createApiMethods(request);
 
-  if (!response.ok) {
-    throw new Error(data.error || '请求失败');
-  }
+// 导出 API 方法（保持向后兼容的命名）
+export const tasksApi = api.tasks;
+export const checkinsApi = api.checkins;
+export const statsApi = api.stats;
+export const llmApi = api.llm;
 
-  return data;
-}
+// 导出工具函数
+export { getTodayDate, getCurrentMonth };
 
-// 任务 API
-export const tasksApi = {
-  // 获取所有任务
-  getAll: () => request('/tasks'),
-
-  // 获取单个任务
-  getById: (id) => request(`/tasks/${id}`),
-
-  // 创建任务
-  create: (data) => request('/tasks', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-
-  // 更新任务
-  update: (id, data) => request(`/tasks/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  }),
-
-  // 删除任务
-  delete: (id) => request(`/tasks/${id}`, {
-    method: 'DELETE',
-  }),
-};
-
-// 打卡记录 API
-export const checkinsApi = {
-  // 获取指定日期的打卡记录
-  getByDate: (date) => request(`/checkins?date=${date}`),
-
-  // 获取指定月份的打卡记录
-  getByMonth: (month) => request(`/checkins?month=${month}`),
-
-  // 获取所有打卡记录
-  getAll: () => request('/checkins'),
-
-  // 获取单条记录
-  getById: (id) => request(`/checkins/${id}`),
-
-  // 新增打卡
-  create: (data) => request('/checkins', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-
-  // 删除打卡记录
-  delete: (id) => request(`/checkins/${id}`, {
-    method: 'DELETE',
-  }),
-};
-
-// 统计 API
-export const statsApi = {
-  // 获取统计数据
-  get: () => request('/stats'),
-};
-
-// 工具函数：获取今天的日期字符串 YYYY-MM-DD
-export const getTodayDate = () => {
-  return new Date().toISOString().slice(0, 10);
-};
-
-// 工具函数：获取当前月份字符串 YYYY-MM
-export const getCurrentMonth = () => {
-  return new Date().toISOString().slice(0, 7);
-};
-
-// LLM API
-export const llmApi = {
-  // Synchronous chat (waits for complete response)
-  chat: (messages, systemPrompt) => request('/llm/chat', {
-    method: 'POST',
-    body: JSON.stringify({
-      messages,
-      systemPrompt,
-      mode: 'sync'
-    }),
-  }),
-
-  // Start async task with polling (returns taskId)
-  chatAsync: (messages, systemPrompt) => request('/llm/chat', {
-    method: 'POST',
-    body: JSON.stringify({
-      messages,
-      systemPrompt,
-      mode: 'poll'
-    }),
-  }),
-
-  // Start async task with callback (returns taskId)
-  chatWithCallback: (messages, systemPrompt, callbackUrl) => request('/llm/chat', {
-    method: 'POST',
-    body: JSON.stringify({
-      messages,
-      systemPrompt,
-      mode: 'callback',
-      callbackUrl
-    }),
-  }),
-
-  // Poll for task result
-  getTask: (taskId) => request(`/llm/task/${taskId}`),
-};
+// 导出原始 request（以防需要）
+export { request };

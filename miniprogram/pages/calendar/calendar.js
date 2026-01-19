@@ -1,12 +1,20 @@
 /**
  * 日历页 - 微信小程序版本
- * 对应 React 版本的 src/pages/Calendar.jsx
+ * 使用共享逻辑层
  */
 const { checkinsApi } = require('../../utils/api.js');
+const {
+  WEEK_DAYS,
+  formatDateKey,
+  buildMonthDays,
+  getStatusByDay,
+  groupCheckinsByDate,
+  formatMonthLabel
+} = require('../../utils/shared.js');
 
 Page({
   data: {
-    weekDays: ['一', '二', '三', '四', '五', '六', '日'],
+    weekDays: WEEK_DAYS,
     monthDays: [],
     checkinDates: {},
     monthLabel: '',
@@ -23,7 +31,7 @@ Page({
     this.setData({
       year,
       month,
-      monthLabel: this.formatMonthLabel(year, month)
+      monthLabel: formatMonthLabel(year, month)
     });
 
     this.loadMonthData();
@@ -41,68 +49,25 @@ Page({
     });
   },
 
-  // 格式化月份标签
-  formatMonthLabel(year, month) {
-    return `${year}年${month + 1}月`;
-  },
-
-  // 构建月份日期数组
-  buildMonthDays(year, month, checkinDates) {
-    const startDate = new Date(year, month, 1);
-    const totalDays = new Date(year, month + 1, 0).getDate();
-    const startOffset = (startDate.getDay() + 6) % 7;
+  // 构建月份日期数组（带状态）
+  buildMonthDaysWithStatus(year, month, checkinDates) {
     const now = new Date();
     const todayDate = now.getDate();
+    const days = buildMonthDays(year, month);
 
-    const days = [];
-
-    // 空白占位
-    for (let i = 0; i < startOffset; i++) {
-      days.push({
-        key: `empty-${i}`,
-        isEmpty: true
-      });
-    }
-
-    // 实际日期
-    for (let day = 1; day <= totalDays; day++) {
-      const dateKey = this.formatDateKey(year, month, day);
-      const status = this.getStatusByDay(day, todayDate, checkinDates, dateKey);
-
-      days.push({
+    // 为每个日期添加状态
+    return days.map(item => {
+      if (item.isEmpty) {
+        return item;
+      }
+      const dateKey = formatDateKey(year, month, item.day);
+      const status = getStatusByDay(item.day, todayDate, checkinDates, dateKey);
+      return {
+        ...item,
         key: dateKey,
-        day,
-        isEmpty: false,
         status
-      });
-    }
-
-    return days;
-  },
-
-  // 格式化日期键
-  formatDateKey(year, month, day) {
-    const monthValue = String(month + 1).padStart(2, '0');
-    const dayValue = String(day).padStart(2, '0');
-    return `${year}-${monthValue}-${dayValue}`;
-  },
-
-  // 根据日期获取状态
-  getStatusByDay(day, todayDate, checkinDates, dateKey) {
-    if (day > todayDate) {
-      return { label: '未开始', tone: 'future' };
-    }
-
-    const checkins = checkinDates[dateKey];
-    if (checkins && checkins.length > 0) {
-      return { label: `已打卡(${checkins.length})`, tone: 'success' };
-    }
-
-    if (day === todayDate) {
-      return { label: '待打卡', tone: 'warning' };
-    }
-
-    return { label: '未打卡', tone: 'danger' };
+      };
+    });
   },
 
   // 加载当月打卡数据
@@ -115,16 +80,9 @@ Page({
     try {
       const data = await checkinsApi.getByMonth(monthKey);
 
-      // 按日期统计打卡数量
-      const dateMap = {};
-      data.forEach((checkin) => {
-        if (!dateMap[checkin.date]) {
-          dateMap[checkin.date] = [];
-        }
-        dateMap[checkin.date].push(checkin);
-      });
-
-      const monthDays = this.buildMonthDays(year, month, dateMap);
+      // 使用共享函数按日期统计
+      const dateMap = groupCheckinsByDate(data);
+      const monthDays = this.buildMonthDaysWithStatus(year, month, dateMap);
 
       this.setData({
         checkinDates: dateMap,
@@ -147,7 +105,7 @@ Page({
     if (!day) return;
 
     const { year, month } = this.data;
-    const dateKey = this.formatDateKey(year, month, day);
+    const dateKey = formatDateKey(year, month, day);
 
     wx.navigateTo({
       url: `/pages/calendar-detail/calendar-detail?date=${dateKey}`

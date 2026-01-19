@@ -1,16 +1,27 @@
 /**
  * 打卡页 - 微信小程序版本
- * 对应 React 版本的 src/pages/Checkin.jsx
+ * 使用共享逻辑层
  */
-const { tasksApi, checkinsApi, getTodayDate } = require('../../utils/api.js');
-
-// 存储键
-const CUSTOM_EXERCISE_TYPES_KEY = 'checkin_custom_exercise_types';
-const EXERCISE_CATEGORY_HIDDEN_KEY = 'checkin_exercise_category_hidden';
-
-// 预置运动类型
-const DEFAULT_EXERCISE_TYPES = ['臀腿', '肩背', '核心', '肩颈', '其他'];
-const DURATION_OPTIONS = [5, 10, 15, 20, 30, 40];
+const { tasksApi, checkinsApi } = require('../../utils/api.js');
+const { getStorageSync, setStorageSync } = require('../../adapters/storage.js');
+const {
+  STORAGE_KEYS,
+  DEFAULT_EXERCISE_TYPES,
+  DURATION_OPTIONS,
+  DEFAULT_EXERCISE_CATEGORY,
+  CATEGORY_TEMPLATES,
+  ICON_OPTIONS,
+  getTodayDate,
+  getCheckedTaskIdsMap,
+  getCategoryForTask,
+  getAllCategories,
+  getExistingCategoryNames,
+  buildCheckinNote,
+  calculateTotalMeasure,
+  getVisiblePresetTags,
+  getAllAvailableTags,
+  createCategory
+} = require('../../utils/shared.js');
 
 Page({
   data: {
@@ -23,6 +34,8 @@ Page({
 
     // 运动打卡相关
     exerciseTags: [...DEFAULT_EXERCISE_TYPES],
+    customTags: [],
+    hiddenTags: [],
     durationOptions: DURATION_OPTIONS,
     selectedExerciseTag: null,
     selectedTaskId: null,
@@ -30,14 +43,36 @@ Page({
     totalExerciseMinutes: 0,
     exerciseCategoryHidden: false,
 
+    // 自定义分类
+    customCategories: {},
+
     // 弹窗相关
     showTagModal: false,
-    newTagValue: ''
+    newTagValue: '',
+    showCreateModal: false,
+    showManageModal: false,
+    selectedCategoryForManage: null,
+
+    // 创建分类表单
+    createStep: 'choose',
+    createName: '',
+    createIcon: '📚',
+    createMeasureType: 'duration',
+    createMeasureOptions: [5, 10, 15, 20, 30],
+    createMeasureUnit: '分钟',
+    createPresetTags: [],
+    createNewTagValue: '',
+    createNewOptionValue: '',
+    createError: '',
+    creating: false,
+
+    // 常量数据
+    categoryTemplates: CATEGORY_TEMPLATES,
+    iconOptions: ICON_OPTIONS
   },
 
   onLoad() {
-    this.loadCustomTypes();
-    this.loadCategoryHidden();
+    this.loadStorageData();
   },
 
   onShow() {
@@ -51,40 +86,43 @@ Page({
     });
   },
 
-  // 加载自定义类型
-  loadCustomTypes() {
-    try {
-      const saved = wx.getStorageSync(CUSTOM_EXERCISE_TYPES_KEY);
-      if (saved) {
-        const customTypes = JSON.parse(saved);
-        this.setData({
-          exerciseTags: [...DEFAULT_EXERCISE_TYPES, ...customTypes]
-        });
-      }
-    } catch (e) {
-      console.error('加载自定义类型失败:', e);
-    }
+  // 加载存储数据
+  loadStorageData() {
+    const customTags = getStorageSync(STORAGE_KEYS.CUSTOM_EXERCISE_TYPES) || [];
+    const hiddenTags = getStorageSync(STORAGE_KEYS.HIDDEN_PRESET_TYPES) || [];
+    const exerciseCategoryHidden = getStorageSync(STORAGE_KEYS.EXERCISE_CATEGORY_HIDDEN) === true;
+    const customCategories = getStorageSync(STORAGE_KEYS.CUSTOM_CATEGORIES) || {};
+
+    const visiblePresetTags = getVisiblePresetTags(DEFAULT_EXERCISE_TYPES, hiddenTags);
+    const exerciseTags = getAllAvailableTags(DEFAULT_EXERCISE_TYPES, customTags, hiddenTags);
+
+    this.setData({
+      customTags,
+      hiddenTags,
+      exerciseTags,
+      exerciseCategoryHidden,
+      customCategories
+    });
   },
 
   // 保存自定义类型
   saveCustomTypes(customTypes) {
-    try {
-      wx.setStorageSync(CUSTOM_EXERCISE_TYPES_KEY, JSON.stringify(customTypes));
-    } catch (e) {
-      console.error('保存自定义类型失败:', e);
-    }
+    setStorageSync(STORAGE_KEYS.CUSTOM_EXERCISE_TYPES, customTypes);
   },
 
-  // 加载分类隐藏状态
-  loadCategoryHidden() {
-    try {
-      const hidden = wx.getStorageSync(EXERCISE_CATEGORY_HIDDEN_KEY);
-      this.setData({
-        exerciseCategoryHidden: hidden === 'true'
-      });
-    } catch (e) {
-      console.error('加载分类状态失败:', e);
-    }
+  // 保存隐藏标签
+  saveHiddenTags(hiddenTags) {
+    setStorageSync(STORAGE_KEYS.HIDDEN_PRESET_TYPES, hiddenTags);
+  },
+
+  // 保存分类隐藏状态
+  saveCategoryHidden(hidden) {
+    setStorageSync(STORAGE_KEYS.EXERCISE_CATEGORY_HIDDEN, hidden);
+  },
+
+  // 保存自定义分类
+  saveCustomCategories(categories) {
+    setStorageSync(STORAGE_KEYS.CUSTOM_CATEGORIES, categories);
   },
 
   // 加载数据
@@ -98,11 +136,8 @@ Page({
         checkinsApi.getByDate(today)
       ]);
 
-      // 构建已打卡任务ID映射
-      const checkedTaskIds = {};
-      checkinsData.forEach(c => {
-        checkedTaskIds[c.task_id] = true;
-      });
+      // 使用共享函数构建已打卡映射
+      const checkedTaskIds = getCheckedTaskIdsMap(checkinsData);
 
       this.setData({
         tasks: tasksData,
@@ -112,10 +147,7 @@ Page({
       });
     } catch (error) {
       console.error('加载数据失败:', error);
-      wx.showToast({
-        title: '加载失败',
-        icon: 'none'
-      });
+      wx.showToast({ title: '加载失败', icon: 'none' });
       this.setData({ loading: false });
     }
   },
@@ -125,14 +157,17 @@ Page({
     return this.data.checkedTaskIds[taskId] || false;
   },
 
+  // 获取任务对应的分类配置
+  getCategory(task) {
+    return getCategoryForTask(task, this.data.customCategories);
+  },
+
   // 普通打卡
   async handleCheckin(e) {
     const { taskId } = e.currentTarget.dataset;
     const { checkedTaskIds } = this.data;
 
-    if (checkedTaskIds[taskId]) {
-      return;
-    }
+    if (checkedTaskIds[taskId]) return;
 
     this.setData({ checking: taskId });
 
@@ -143,7 +178,6 @@ Page({
         date: today
       });
 
-      // 更新状态
       const updatedCheckedIds = { ...checkedTaskIds, [taskId]: true };
       const updatedCheckins = [...this.data.todayCheckins, newCheckin];
 
@@ -153,15 +187,9 @@ Page({
         checking: null
       });
 
-      wx.showToast({
-        title: '打卡成功',
-        icon: 'success'
-      });
+      wx.showToast({ title: '打卡成功', icon: 'success' });
     } catch (error) {
-      wx.showToast({
-        title: error.message || '打卡失败',
-        icon: 'none'
-      });
+      wx.showToast({ title: error.message || '打卡失败', icon: 'none' });
       this.setData({ checking: null });
     }
   },
@@ -172,32 +200,22 @@ Page({
     const { selectedExerciseTag, selectedTaskId } = this.data;
 
     if (selectedExerciseTag === tag && selectedTaskId === taskId) {
-      this.setData({
-        selectedExerciseTag: null,
-        selectedTaskId: null
-      });
+      this.setData({ selectedExerciseTag: null, selectedTaskId: null });
     } else {
-      this.setData({
-        selectedExerciseTag: tag,
-        selectedTaskId: taskId
-      });
+      this.setData({ selectedExerciseTag: tag, selectedTaskId: taskId });
     }
   },
 
   // 选择时长
   onSelectDuration(e) {
-    const { duration, taskId } = e.currentTarget.dataset;
+    const { duration } = e.currentTarget.dataset;
     const { selectedExerciseTag, selectedExerciseItems } = this.data;
 
     if (!selectedExerciseTag) return;
 
-    const newItem = {
-      tag: selectedExerciseTag,
-      measure: duration
-    };
-
+    const newItem = { tag: selectedExerciseTag, measure: duration };
     const updatedItems = [...selectedExerciseItems, newItem];
-    const totalMinutes = updatedItems.reduce((sum, item) => sum + item.measure, 0);
+    const totalMinutes = calculateTotalMeasure(updatedItems);
 
     this.setData({
       selectedExerciseItems: updatedItems,
@@ -212,7 +230,7 @@ Page({
     const { selectedExerciseItems } = this.data;
 
     const updatedItems = selectedExerciseItems.filter((_, i) => i !== index);
-    const totalMinutes = updatedItems.reduce((sum, item) => sum + item.measure, 0);
+    const totalMinutes = calculateTotalMeasure(updatedItems);
 
     this.setData({
       selectedExerciseItems: updatedItems,
@@ -223,7 +241,7 @@ Page({
   // 提交运动打卡
   async submitExerciseCheckin(e) {
     const { taskId } = e.currentTarget.dataset;
-    const { selectedExerciseItems, totalExerciseMinutes, checkedTaskIds, todayCheckins } = this.data;
+    const { selectedExerciseItems, checkedTaskIds, todayCheckins } = this.data;
 
     if (selectedExerciseItems.length === 0) return;
 
@@ -231,14 +249,7 @@ Page({
 
     try {
       const today = getTodayDate();
-      const note = JSON.stringify({
-        categoryId: 'exercise_default',
-        categoryName: '运动',
-        categoryIcon: '🏃',
-        items: selectedExerciseItems,
-        totalMeasure: totalExerciseMinutes,
-        measureUnit: '分钟'
-      });
+      const note = buildCheckinNote(DEFAULT_EXERCISE_CATEGORY, selectedExerciseItems);
 
       const newCheckin = await checkinsApi.create({
         task_id: taskId,
@@ -246,7 +257,6 @@ Page({
         note: note
       });
 
-      // 更新状态
       const updatedCheckedIds = { ...checkedTaskIds, [taskId]: true };
       const updatedCheckins = [...todayCheckins, newCheckin];
 
@@ -260,71 +270,49 @@ Page({
         submitting: false
       });
 
-      wx.showToast({
-        title: '打卡成功',
-        icon: 'success'
-      });
+      wx.showToast({ title: '打卡成功', icon: 'success' });
     } catch (error) {
-      wx.showToast({
-        title: error.message || '打卡失败',
-        icon: 'none'
-      });
+      wx.showToast({ title: error.message || '打卡失败', icon: 'none' });
       this.setData({ submitting: false });
     }
   },
 
   // 显示添加标签弹窗
   showAddTagModal() {
-    this.setData({
-      showTagModal: true,
-      newTagValue: ''
-    });
+    this.setData({ showTagModal: true, newTagValue: '' });
   },
 
   // 隐藏添加标签弹窗
   hideAddTagModal() {
-    this.setData({
-      showTagModal: false,
-      newTagValue: ''
-    });
+    this.setData({ showTagModal: false, newTagValue: '' });
   },
 
   // 输入新标签
   onNewTagInput(e) {
-    this.setData({
-      newTagValue: e.detail.value
-    });
+    this.setData({ newTagValue: e.detail.value });
   },
 
   // 添加自定义标签
   addCustomTag() {
-    const { newTagValue, exerciseTags } = this.data;
+    const { newTagValue, exerciseTags, customTags } = this.data;
     const trimmed = newTagValue.trim();
 
     if (!trimmed) {
-      wx.showToast({
-        title: '请输入类型名称',
-        icon: 'none'
-      });
+      wx.showToast({ title: '请输入类型名称', icon: 'none' });
       return;
     }
 
     if (exerciseTags.includes(trimmed)) {
-      wx.showToast({
-        title: '该类型已存在',
-        icon: 'none'
-      });
+      wx.showToast({ title: '该类型已存在', icon: 'none' });
       return;
     }
 
-    // 获取自定义类型列表
-    const customTypes = exerciseTags.filter(t => !DEFAULT_EXERCISE_TYPES.includes(t));
-    customTypes.push(trimmed);
+    const newCustomTags = [...customTags, trimmed];
+    this.saveCustomTypes(newCustomTags);
 
-    // 保存并更新
-    this.saveCustomTypes(customTypes);
     this.setData({
-      exerciseTags: [...DEFAULT_EXERCISE_TYPES, ...customTypes],
+      customTags: newCustomTags,
+      exerciseTags: [...DEFAULT_EXERCISE_TYPES, ...newCustomTags],
       showTagModal: false,
       newTagValue: '',
       selectedExerciseTag: trimmed
@@ -333,15 +321,23 @@ Page({
 
   // 管理运动分类
   manageExerciseCategory() {
-    wx.showActionSheet({
-      itemList: ['隐藏分类', '恢复预置标签'],
-      success: (res) => {
-        if (res.tapIndex === 0) {
-          this.hideExerciseCategory();
-        } else if (res.tapIndex === 1) {
-          this.restorePresetTags();
-        }
-      }
+    const { tasks, customCategories } = this.data;
+    const categories = getAllCategories(tasks, customCategories);
+    const exerciseCategory = categories.find(c => c.id === 'exercise_default');
+
+    if (exerciseCategory) {
+      this.setData({
+        selectedCategoryForManage: exerciseCategory,
+        showManageModal: true
+      });
+    }
+  },
+
+  // 隐藏管理弹窗
+  hideManageModal() {
+    this.setData({
+      showManageModal: false,
+      selectedCategoryForManage: null
     });
   },
 
@@ -352,35 +348,183 @@ Page({
       content: '确定要隐藏运动分类吗？',
       success: (res) => {
         if (res.confirm) {
-          wx.setStorageSync(EXERCISE_CATEGORY_HIDDEN_KEY, 'true');
-          this.setData({ exerciseCategoryHidden: true });
+          this.saveCategoryHidden(true);
+          this.setData({
+            exerciseCategoryHidden: true,
+            showManageModal: false
+          });
         }
       }
     });
   },
 
+  // 恢复运动分类
+  restoreExerciseCategory() {
+    this.saveCategoryHidden(false);
+    this.setData({ exerciseCategoryHidden: false });
+    wx.showToast({ title: '已恢复', icon: 'success' });
+  },
+
   // 恢复预置标签
   restorePresetTags() {
+    this.saveHiddenTags([]);
     this.setData({
-      exerciseTags: [...DEFAULT_EXERCISE_TYPES]
+      hiddenTags: [],
+      exerciseTags: [...DEFAULT_EXERCISE_TYPES, ...this.data.customTags]
     });
-    this.saveCustomTypes([]);
-    wx.showToast({
-      title: '已恢复预置标签',
-      icon: 'success'
+    wx.showToast({ title: '已恢复预置标签', icon: 'success' });
+  },
+
+  // 显示添加分类弹窗
+  showAddCategoryModal() {
+    this.setData({
+      showCreateModal: true,
+      createStep: 'choose',
+      createName: '',
+      createIcon: '📚',
+      createMeasureType: 'duration',
+      createMeasureOptions: [5, 10, 15, 20, 30],
+      createMeasureUnit: '分钟',
+      createPresetTags: [],
+      createError: ''
     });
   },
 
-  // 显示添加分类弹窗（暂时提示）
-  showAddCategoryModal() {
-    wx.showToast({
-      title: '功能开发中',
-      icon: 'none'
+  // 隐藏添加分类弹窗
+  hideAddCategoryModal() {
+    this.setData({ showCreateModal: false });
+  },
+
+  // 切换到自定义创建
+  switchToCustomCreate() {
+    this.setData({ createStep: 'custom' });
+  },
+
+  // 返回选择模板
+  backToChooseTemplate() {
+    this.setData({ createStep: 'choose' });
+  },
+
+  // 从模板创建分类
+  async createFromTemplate(e) {
+    const { template } = e.currentTarget.dataset;
+    const { tasks, customCategories } = this.data;
+    const existingNames = getExistingCategoryNames(tasks, customCategories);
+
+    if (existingNames.includes(template.name)) {
+      this.setData({ createError: `"${template.name}" 分类已存在` });
+      return;
+    }
+
+    this.setData({ creating: true, createError: '' });
+
+    try {
+      await this.doCreateCategory(template);
+      this.setData({ showCreateModal: false, creating: false });
+    } catch (error) {
+      this.setData({ createError: error.message || '创建失败', creating: false });
+    }
+  },
+
+  // 输入分类名称
+  onCreateNameInput(e) {
+    this.setData({ createName: e.detail.value });
+  },
+
+  // 选择图标
+  onSelectIcon(e) {
+    const { icon } = e.currentTarget.dataset;
+    this.setData({ createIcon: icon });
+  },
+
+  // 选择度量类型
+  onSelectMeasureType(e) {
+    const { type } = e.currentTarget.dataset;
+    let options = [5, 10, 15, 20, 30];
+    let unit = '分钟';
+
+    if (type === 'count') {
+      options = [1, 2, 3, 5, 10];
+      unit = '个';
+    } else if (type === 'none') {
+      options = [];
+      unit = '';
+    }
+
+    this.setData({
+      createMeasureType: type,
+      createMeasureOptions: options,
+      createMeasureUnit: unit
     });
+  },
+
+  // 自定义创建分类
+  async handleCustomCreate() {
+    const { createName, tasks, customCategories } = this.data;
+    const trimmedName = createName.trim();
+
+    if (!trimmedName) {
+      this.setData({ createError: '请输入分类名称' });
+      return;
+    }
+
+    const existingNames = getExistingCategoryNames(tasks, customCategories);
+    if (existingNames.includes(trimmedName)) {
+      this.setData({ createError: `"${trimmedName}" 分类已存在` });
+      return;
+    }
+
+    this.setData({ creating: true, createError: '' });
+
+    try {
+      const {
+        createIcon,
+        createPresetTags,
+        createMeasureType,
+        createMeasureOptions,
+        createMeasureUnit
+      } = this.data;
+
+      await this.doCreateCategory({
+        name: trimmedName,
+        icon: createIcon,
+        presetTags: createPresetTags,
+        measureType: createMeasureType,
+        measureOptions: createMeasureType === 'none' ? [] : createMeasureOptions,
+        measureUnit: createMeasureType === 'none' ? '' : createMeasureUnit
+      });
+
+      this.setData({ showCreateModal: false, creating: false });
+    } catch (error) {
+      this.setData({ createError: error.message || '创建失败', creating: false });
+    }
+  },
+
+  // 执行创建分类
+  async doCreateCategory(categoryData) {
+    // 1. 创建后端任务
+    const task = await tasksApi.create({
+      name: categoryData.name,
+      description: `${categoryData.icon} ${categoryData.name}打卡`
+    });
+
+    // 2. 使用共享函数创建分类配置
+    const category = createCategory(task.id, categoryData);
+
+    // 3. 保存分类配置
+    const { customCategories, tasks } = this.data;
+    const updatedCategories = { ...customCategories, [category.id]: category };
+    this.saveCustomCategories(updatedCategories);
+
+    // 4. 更新状态
+    this.setData({
+      customCategories: updatedCategories,
+      tasks: [...tasks, task]
+    });
+
+    wx.showToast({ title: '创建成功', icon: 'success' });
   },
 
   // 阻止事件冒泡
-  preventBubble() {
-    // 空函数，用于阻止点击事件冒泡
-  }
+  preventBubble() {}
 });
