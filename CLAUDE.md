@@ -2,76 +2,81 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Development Commands
+## Project Overview
+
+A check-in/habit tracking application with dual-platform support: React Web and WeChat Mini Program (微信小程序). Both platforms share business logic through a common `shared/` layer while maintaining platform-specific UI implementations.
+
+## Commands
 
 ```bash
-npm run dev      # Start frontend dev server (port 5173)
-npm run server   # Start backend API server (port 3001)
-npm run build    # Build for production
-npm run preview  # Preview production build
+# Development
+npm run start          # Run both frontend and backend concurrently
+npm run dev            # Vite dev server only (port 5173)
+npm run server         # Express backend only (port 3001)
+
+# Build
+npm run build          # Vite production build
+
+# Testing (Playwright E2E)
+npx playwright test                    # Run all tests
+npx playwright test tests/app.spec.js  # Run specific test file
+npx playwright test -g "打卡功能"       # Run tests matching pattern
 ```
 
 ## Architecture
 
-This is a React 18 check-in/habit tracking application (打卡应用) built with Vite.
+### Dual-Platform Structure
 
-**Tech Stack:** React 18, React Router v6, Vite 5, Express.js, SQLite
+```
+shared/                 # Shared business logic (ES Modules)
+├── constants/          # Categories, storage keys
+├── logic/              # Date, calendar, checkin logic
+└── api/                # API endpoint definitions
 
-**Routing Structure:**
-- `/` - Home page
-- `/calendar` - Calendar view
-- `/calendar/:date` - Calendar detail for specific date
-- `/checkin` - Check-in page
-- `/records` - Records page
+src/                    # React Web (uses shared/ directly)
+├── adapters/           # fetch + localStorage adapters
+└── pages/              # React components
 
-**Project Structure:**
-- `src/components/` - Shared components (Layout with navigation)
-- `src/pages/` - Page components (Home, Calendar, CalendarDetail, Checkin, Records)
-- `src/hooks/` - Custom hooks (usePageTitle for document title management)
-- `src/styles/` - Global CSS styles
-- `src/api.js` - Frontend API client (tasksApi, checkinsApi, statsApi, llmApi)
-- `server/` - Express.js backend
-  - `server/index.js` - Main server entry point
-  - `server/routes/` - API route handlers (tasks.js, checkins.js, stats.js, llm.js)
-  - `server/db.js` - SQLite database connection
+miniprogram/            # WeChat Mini Program (CommonJS)
+├── adapters/           # wx.request + wx.setStorageSync adapters
+├── utils/shared.js     # CommonJS copy of shared logic (must be manually synced)
+└── pages/              # WXML/WXSS pages
 
-## Backend API
+server/                 # Express + SQLite backend
+├── routes/             # tasks, checkins, stats, llm endpoints
+└── db.js               # better-sqlite3 database setup
+```
 
-**Base URL:** `http://localhost:3001/api`
+### Key Pattern: Shared Logic Sync
 
-**Endpoints:**
-- `GET/POST/PUT/DELETE /api/tasks` - Task management
+When modifying `shared/` (ES Modules), you must manually sync changes to `miniprogram/utils/shared.js` (CommonJS version). The two versions must stay in sync.
+
+### API Endpoints
+
+- `GET/POST/PUT/DELETE /api/tasks` - Task CRUD
 - `GET/POST/DELETE /api/checkins` - Check-in records
-- `GET /api/stats` - Statistics
-- `POST /api/llm/chat` - LLM chat (modes: sync, poll, callback)
-- `GET /api/llm/task/:taskId` - Poll for async LLM task result
+- `GET /api/stats` - Statistics (totalCheckins, streakDays, todayCheckins)
+- `POST /api/llm` - LLM chat integration
 - `GET /api/health` - Health check
 
-## LLM Integration
+### Database
 
-The app integrates with Gemini LLM API via a backend proxy.
+SQLite database at `server/checkin.db` with tables:
+- `tasks` (id, name, description, created_at)
+- `checkins` (id, task_id, date, time, note, created_at)
 
-**Configuration (`.env`):**
-```
-GEMINI_KEY=your-api-key
-GEMINI_API_URL=your-api-endpoint
-GEMINI_MODEL=gemini-3-flash-preview
-LLM_SYSTEM_PROMPT=Your system prompt here
-```
+### React Routing
 
-**Three response modes:**
-1. `sync` - Waits for complete response
-2. `poll` - Returns taskId, poll `/api/llm/task/:taskId` for result
-3. `callback` - Sends result to provided callbackUrl when complete
+Uses React Router with lazy-loaded pages:
+- `/` - Home (stats dashboard)
+- `/checkin` - Daily check-in
+- `/calendar` - Monthly calendar view
+- `/calendar/:date` - Day detail view
+- `/records` - Check-in history
 
-**Frontend usage:**
-```javascript
-import { llmApi } from './api';
+# Package Management Rules
 
-// Sync mode
-const response = await llmApi.chat([{role: 'user', content: 'Hello'}]);
+- ALWAYS check the status of npm packages before adding/upgrading to avoid deprecated/unsupported packages while ensuring compatibility.
+- use Watchman instead of Node.js libuv for file system.
 
-// Poll mode
-const { taskId } = await llmApi.chatAsync([{role: 'user', content: 'Hello'}]);
-const result = await llmApi.getTask(taskId);
-```
+

@@ -7,3 +7,5 @@ dist/
 .vite/
 test-results/
 *.log
+
+.watchman*
